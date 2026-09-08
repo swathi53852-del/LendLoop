@@ -1,0 +1,130 @@
+.sidebar {
+  width: 303px;
+  height: 100vh;
+  background: #0d1729;
+  color: white;
+
+  position: fixed;
+  left: 0;
+  top: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 36px 18px;
+  z-index: 1000;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  padding: 0 14px;
+  margin-bottom: 40px;
+}
+
+.logo-box {
+  width: 50px;
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #5146e5;
+  border-radius: 13px;
+
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.sidebar-logo span {
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sidebar-link {
+  width: 100%;
+  height: 58px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 18px;
+  padding: 0 20px;
+
+  border-radius: 12px;
+
+  color: #d5deed;
+  text-decoration: none;
+
+  font-size: 18px;
+  font-weight: 500;
+
+  transition: all 0.2s ease;
+}
+
+.sidebar-link:hover {
+  background: #182338;
+  color: white;
+}
+
+.sidebar-link.active {
+  background: #5146e5;
+  color: white;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.logout-link {
+  color: #ff8b9a;
+}
+
+.logout-link:hover {
+  background: #301d27;
+  color: #ff9eaa;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  .sidebar-link {
+    font-size: 16px;
+  }
+
+  .sidebar-logo span {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 20px;
+  }
+
+  .sidebar-logo {
+    margin-bottom: 20px;
+  }
+
+  .sidebar-bottom {
+    margin-top: 15px;
+  }
+}
