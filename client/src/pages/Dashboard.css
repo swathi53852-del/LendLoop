@@ -935,3 +935,29 @@
     padding: 19px;
   }
 }
+/* Reduce only Recent Items rows and images */
+.recent-item {
+padding: 5px 0;
+gap: 8px;
+min-height: 42px;
+}
+
+.recent-item .item-image {
+width: 28px;
+height: 28px;
+min-width: 28px;
+border-radius: 6px;
+}
+
+.recent-item .item-info h3 {
+font-size: 11px;
+}
+
+.recent-item .item-info p {
+font-size: 10px;
+}
+
+.recent-item .status-badge {
+padding: 3px 6px;
+font-size: 9px;
+}

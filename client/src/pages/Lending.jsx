@@ -1,3 +1,4 @@
+
 import {
   Package,
   Search,
@@ -6,7 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import "./Lending.css";
 
@@ -16,64 +17,73 @@ function Lending() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // =====================================================
   // GET LOGGED-IN USER
-  // =====================================================
-
   const getLoggedInUser = () => {
-    const savedUser = localStorage.getItem("lendloopUser");
-
-    if (!savedUser) {
-      return null;
-    }
-
     try {
-      return JSON.parse(savedUser);
-    } catch (error) {
-      console.error("Invalid lendloopUser:", error);
+      const savedUser = localStorage.getItem("lendloopUser");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (err) {
+      console.error("Invalid lendloopUser:", err);
       return null;
     }
   };
 
-  // =====================================================
-  // GET USER ID
-  // =====================================================
+  // NORMALIZE MONGODB / USER IDS
+  const getId = (value) => {
+    if (value == null) return "";
 
+    if (typeof value === "string" || typeof value === "number") {
+      return String(value).trim();
+    }
+
+    if (typeof value === "object") {
+      if (value.$oid) return String(value.$oid).trim();
+      if (value._id != null) return getId(value._id);
+      if (value.id != null) return getId(value.id);
+    }
+
+    return "";
+  };
+
+  // GET LOGGED-IN USER ID
   const getUserId = (user) => {
     if (!user) return "";
 
-    return String(
-      user._id ||
-        user.id ||
-        user.userId ||
-        user.user?._id ||
-        user.user?.id ||
-        ""
-    ).trim();
+    return (
+      getId(user._id) ||
+      getId(user.id) ||
+      getId(user.userId) ||
+      getId(user.user?._id) ||
+      getId(user.user?.id) ||
+      getId(user.user?.userId)
+    );
   };
 
-  // =====================================================
-  // GET ID
-  // =====================================================
+  // GET OWNER ID
+  // Supports populated owner objects and unpopulated MongoDB IDs.
+  const getOwnerId = (request) => {
+    const candidates = [
+      request.item?.owner,
+      request.item?.ownerId,
+      request.item?.user,
+      request.item?.userId,
+      request.owner,
+      request.ownerId,
+      request.lender,
+      request.lenderId,
+    ];
 
-  const getId = (value) => {
-    if (!value) return "";
-
-    if (typeof value === "string") {
-      return value.trim();
+    for (const candidate of candidates) {
+      const id = getId(candidate);
+      if (id) return id;
     }
 
-    return String(value._id || value.id || "").trim();
+    return "";
   };
 
-  // =====================================================
   // FORMAT DATE
-  // =====================================================
-
   const formatDate = (date) => {
-    if (!date) {
-      return "Not specified";
-    }
+    if (!date) return "Not specified";
 
     const parsedDate = new Date(date);
 
@@ -88,21 +98,13 @@ function Lending() {
     });
   };
 
-  // =====================================================
   // FETCH LENDING REQUESTS
-  // =====================================================
-
-  const fetchLendingRequests = async () => {
+  const fetchLendingRequests = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
       const user = getLoggedInUser();
-
-      console.log("================================");
-      console.log("LENDING PAGE");
-      console.log("Logged-in user:", user);
-      console.log("================================");
 
       if (!user) {
         setLentItems([]);
@@ -112,8 +114,6 @@ function Lending() {
 
       const userId = getUserId(user);
 
-      console.log("Logged-in user ID:", userId);
-
       if (!userId) {
         setLentItems([]);
         setError(
@@ -122,54 +122,49 @@ function Lending() {
         return;
       }
 
-      // =================================================
-      // GET REQUESTS INVOLVING THIS USER
-      // =================================================
+      console.log("========== LENDING PAGE ==========");
+      console.log("Logged-in user:", user);
+      console.log("Logged-in user ID:", userId);
 
       const response = await fetch(
-        `http://localhost:5000/api/lending-requests/user/${userId}`
+        `/api/lending-requests/user/${encodeURIComponent(
+          userId
+        )}`
       );
 
       console.log("Lending API status:", response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error("Lending API error:", errorText);
-
         throw new Error(`Server returned ${response.status}`);
       }
 
       const requests = await response.json();
 
-      console.log("All requests:", requests);
-
       if (!Array.isArray(requests)) {
         throw new Error("Backend did not return an array.");
       }
 
-      // =================================================
-      // FILTER OWNER + APPROVED
-      // =================================================
+      console.log("All requests:", requests);
 
+      // SHOW ONLY APPROVED REQUESTS FOR ITEMS OWNED BY THIS USER.
+      // Do not remove this owner check: it protects account separation.
       const activeLending = requests.filter((request) => {
-        const ownerId = getId(request.owner);
+        const ownerId = getOwnerId(request);
 
         const status = String(request.status || "")
           .trim()
           .toLowerCase();
 
-        const currentUserId = String(userId).trim();
-
-        const isOwner = ownerId === currentUserId;
-
+        const isOwner = ownerId === userId;
         const isApproved = status === "approved";
 
         console.log("Lending check:", {
           requestId: request._id,
           item: request.item?.name,
+          itemOwner: request.item?.owner,
+          requestOwner: request.owner,
           ownerId,
-          currentUserId,
+          currentUserId: userId,
           status,
           isOwner,
           isApproved,
@@ -181,31 +176,23 @@ function Lending() {
       console.log("ACTIVE LENDING:", activeLending);
 
       setLentItems(activeLending);
-    } catch (error) {
-      console.error("Lending fetch error:", error);
-
+    } catch (err) {
+      console.error("Lending fetch error:", err);
       setLentItems([]);
-
       setError(
         "Unable to load lending information. Please make sure the LendLoop server is running."
       );
     } finally {
       setLoading(false);
     }
-  };
-
-  // =====================================================
-  // LOAD DATA
-  // =====================================================
-
-  useEffect(() => {
-    fetchLendingRequests();
   }, []);
 
-  // =====================================================
-  // SEARCH
-  // =====================================================
+  // LOAD DATA
+  useEffect(() => {
+    fetchLendingRequests();
+  }, [fetchLendingRequests]);
 
+  // SEARCH
   const searchText = search.toLowerCase().trim();
 
   const filteredItems = lentItems.filter((request) => {
@@ -228,35 +215,20 @@ function Lending() {
     );
   });
 
-  // =====================================================
-  // PAGE
-  // =====================================================
-
+  // PAGE UI
   return (
     <div className="lending-page">
-
       <Sidebar />
 
       <main className="lending-main">
-
-        {/* HEADER */}
-
         <div className="lending-header">
           <h1>Lending</h1>
-
-          <p>
-            Track the items you have lent to others.
-          </p>
+          <p>Track the items you have lent to others.</p>
         </div>
 
         {/* SEARCH */}
-
         <div className="lending-search">
-
-          <Search
-            size={21}
-            color="#94a3b8"
-          />
+          <Search size={21} color="#94a3b8" />
 
           <input
             type="text"
@@ -264,75 +236,55 @@ function Lending() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-
         </div>
 
         {/* ERROR */}
-
         {error && (
-          <div className="lending-error">
-
+          <div className="lending-error" role="alert">
             <span>{error}</span>
 
-            <button onClick={fetchLendingRequests}>
-
+            <button
+              onClick={fetchLendingRequests}
+              disabled={loading}
+            >
               <RefreshCw size={16} />
-
               Retry
-
             </button>
-
           </div>
         )}
 
         {/* LOADING */}
-
         {loading && (
           <div className="lending-empty">
-
             <div className="empty-icon">
-
               <RefreshCw
                 size={38}
                 className="loading-icon"
               />
-
             </div>
 
-            <h2>
-              Loading lending information...
-            </h2>
-
-            <p>
-              Please wait.
-            </p>
-
+            <h2>Loading lending information...</h2>
+            <p>Please wait.</p>
           </div>
         )}
 
-        {/* EMPTY */}
-
-        {!loading && filteredItems.length === 0 && (
+        {/* EMPTY STATE */}
+        {!loading && !error && filteredItems.length === 0 && (
           <div className="lending-empty">
-
             <div className="empty-icon">
-
               <Package
                 size={40}
                 color="#4f46e5"
                 strokeWidth={1.8}
               />
-
             </div>
 
-            <h2>
-              No lent items
-            </h2>
+            <h2>No lent items</h2>
 
             <p>
               {search
                 ? "No lent items match your search."
-                : "You don't have any items currently lent to others."}
+                : "You don't have any approved items currently lent to others."}
             </p>
 
             {!search && (
@@ -340,67 +292,56 @@ function Lending() {
                 Active lending items: {lentItems.length}
               </span>
             )}
-
           </div>
         )}
 
         {/* LENDING CARDS */}
-
         {!loading && filteredItems.length > 0 && (
           <div className="lending-grid">
-
             {filteredItems.map((request) => {
+              const item =
+                request.item && typeof request.item === "object"
+                  ? request.item
+                  : {};
 
-              const item = request.item || {};
-              const borrower = request.borrower || {};
+              const borrower =
+                request.borrower &&
+                typeof request.borrower === "object"
+                  ? request.borrower
+                  : {};
 
               return (
                 <div
                   className="lending-card"
                   key={request._id}
                 >
-
                   {/* IMAGE */}
-
                   <div className="lending-image-wrapper">
-
                     {item.image ? (
-
                       <img
                         src={item.image}
                         alt={item.name || "Item"}
                         className="lending-image"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
-
                           e.currentTarget.parentElement.classList.add(
                             "image-fallback"
                           );
                         }}
                       />
-
                     ) : (
-
                       <div className="image-fallback">
-
                         <Package
                           size={42}
                           color="#4f46e5"
                         />
-
                       </div>
-
                     )}
-
                   </div>
 
                   {/* CONTENT */}
-
                   <div className="lending-card-content">
-
-                    <h3>
-                      {item.name || "Unknown Item"}
-                    </h3>
+                    <h3>{item.name || "Unknown Item"}</h3>
 
                     <span className="lent-badge">
                       ● Currently Lent
@@ -419,9 +360,7 @@ function Lending() {
                     )}
 
                     {/* BORROWER */}
-
                     <div className="info-row">
-
                       <User size={17} />
 
                       <span>
@@ -432,43 +371,30 @@ function Lending() {
                             "Unknown user"}
                         </strong>
                       </span>
-
                     </div>
 
                     {/* BORROWED DATE */}
-
                     <div className="info-row">
-
                       <CalendarDays size={17} />
 
                       <span>
                         Borrowed:{" "}
-                        {formatDate(
-                          request.borrowedDate
-                        )}
+                        {formatDate(request.borrowedDate)}
                       </span>
-
                     </div>
 
                     {/* RETURN DATE */}
-
                     <div className="info-row">
-
                       <CalendarDays size={17} />
 
                       <span>
                         Return date:{" "}
-                        {formatDate(
-                          request.returnDate
-                        )}
+                        {formatDate(request.returnDate)}
                       </span>
-
                     </div>
 
                     {/* STATUS */}
-
                     <div className="status-row">
-
                       <span className="approved-text">
                         ✓ Approved
                       </span>
@@ -476,20 +402,14 @@ function Lending() {
                       <span className="active-badge">
                         ACTIVE
                       </span>
-
                     </div>
-
                   </div>
-
                 </div>
               );
             })}
-
           </div>
         )}
-
       </main>
-
     </div>
   );
 }

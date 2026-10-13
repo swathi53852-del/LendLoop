@@ -121,7 +121,7 @@ function Requests() {
       }
 
       const response = await fetch(
-        `http://localhost:5000/api/lending-requests/user/${userId}`
+        `/api/lending-requests/user/${userId}`
       );
 
       if (!response.ok) {
@@ -202,7 +202,7 @@ function Requests() {
       setActionLoading(requestId);
 
       const response = await fetch(
-        `http://localhost:5000/api/lending-requests/${requestId}/approve`,
+        `/api/lending-requests/${requestId}/approve`,
         {
           method: "PUT",
           headers: {
@@ -256,7 +256,7 @@ function Requests() {
       setActionLoading(requestId);
 
       const response = await fetch(
-        `http://localhost:5000/api/lending-requests/${requestId}/decline`,
+        `/api/lending-requests/${requestId}/decline`,
         {
           method: "PUT",
           headers: {

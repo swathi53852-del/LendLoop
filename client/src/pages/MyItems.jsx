@@ -157,7 +157,7 @@ function MyItems() {
             // =============================================
 
             const response = await fetch(
-                "http://localhost:5000/api/items"
+                "/api/items"
             );
 
 
@@ -355,7 +355,7 @@ function MyItems() {
 
             const response =
                 await fetch(
-                    "http://localhost:5000/api/items",
+                    "/api/items",
                     {
                         method: "POST",
 
@@ -491,7 +491,7 @@ function MyItems() {
 
             const response =
                 await fetch(
-                    `http://localhost:5000/api/items/${id}`,
+                    `/api/items/${id}`,
                     {
                         method: "DELETE"
                     }
